@@ -1,0 +1,19 @@
+{
+  "name": "campsite-report",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.1",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
