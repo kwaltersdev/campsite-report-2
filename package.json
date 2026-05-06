@@ -5,14 +5,20 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate": "tsx src/migrate.ts",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:dev": "docker compose up --build"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.1",
-    "hono": "^4.0.0"
+    "hono": "^4.0.0",
+    "pg": "^8.11.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
+    "@types/pg": "^8.6.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }

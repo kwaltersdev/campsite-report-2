@@ -5,6 +5,7 @@ import { HtmlEscapedString } from 'hono/utils/html';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { query } from './db.js';
 
 const app = new Hono();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -36,7 +37,6 @@ const renderPage = (title: HtmlEscapedString | Promise<HtmlEscapedString>, body:
 interface Campground {
   id: number;
   name: string;
-  location: string;
 }
 
 interface Campsite {
@@ -50,22 +50,23 @@ interface Campsite {
   notes: string;
 }
 
-const campgrounds: Campground[] = [];
 const campsites: Campsite[] = [];
 
-app.get('/', (c) =>
-  c.html(
+app.get('/', async (c) => {
+  const result = await query('SELECT id, name FROM campgrounds ORDER BY name');
+  const campgrounds = result.rows as Campground[];
+  return c.html(
     renderPage(
       html`Campsite Report`,
       html`<h1>Campsite Report</h1>
       <p>Welcome to the Campsite Report app!</p>
       <h2>Campgrounds</h2>
       <ul>
-        ${campgrounds.map(camp => html`<li><a href="/campground/${camp.id}">${camp.name}</a> - ${camp.location}</li>`)}
+        ${campgrounds.map(camp => html`<li><a href="/campground/${camp.id}">${camp.name}</a></li>`)}
       </ul>`
     )
-  )
-);
+  );
+});
 
 app.get('/add-campground', (c) =>
   c.html(
@@ -75,8 +76,6 @@ app.get('/add-campground', (c) =>
       <form method="post" action="/add-campground">
         <label for="name">Name:</label>
         <input type="text" id="name" name="name" required><br><br>
-        <label for="location">Location:</label>
-        <input type="text" id="location" name="location" required><br><br>
         <button type="submit">Add Campground</button>
       </form>
       <br>
@@ -88,16 +87,16 @@ app.get('/add-campground', (c) =>
 app.post('/add-campground', async (c) => {
   const body = await c.req.parseBody();
   const name = body.name as string;
-  const location = body.location as string;
-  if (name && location) {
-    campgrounds.push({ id: Date.now(), name, location });
+  if (name) {
+    await query('INSERT INTO campgrounds (name) VALUES ($1)', [name]);
   }
   return c.redirect('/');
 });
 
-app.get('/campground/:id', (c) => {
+app.get('/campground/:id', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
-  const campground = campgrounds.find(camp => camp.id === id);
+  const result = await query('SELECT id, name FROM campgrounds WHERE id = $1', [id]);
+  const campground = result.rows[0] as Campground | undefined;
   if (!campground) {
     return c.html(
       renderPage(
@@ -113,7 +112,6 @@ app.get('/campground/:id', (c) => {
     renderPage(
       html`${campground.name}`,
       html`<h1>${campground.name}</h1>
-      <p><strong>Location:</strong> ${campground.location}</p>
       <h2>Campsites</h2>
       <p><a href="/add-campsite?campground=${id}">Add campsite for ${campground.name}</a></p>
       <ul>
@@ -124,8 +122,10 @@ app.get('/campground/:id', (c) => {
   );
 });
 
-app.get('/add-campsite', (c) => {
+app.get('/add-campsite', async (c) => {
   const defaultCampgroundId = parseInt(c.req.query('campground') || '', 10) || undefined;
+  const result = await query('SELECT id, name FROM campgrounds ORDER BY name');
+  const campgrounds = result.rows as { id: number; name: string; }[];
   return c.html(
     renderPage(
       html`Add Campsite`,
@@ -223,11 +223,12 @@ app.get('/styles.css', async (c) => {
   return c.body(css, 200, { 'Content-Type': 'text/css' });
 });
 
-app.get('/campground/:id/campsite/:siteId', (c) => {
+app.get('/campground/:id/campsite/:siteId', async (c) => {
   const campgroundId = parseInt(c.req.param('id'), 10);
   const siteId = c.req.param('siteId');
 
-  const campground = campgrounds.find(cg => cg.id === campgroundId);
+  const campgroundResult = await query('SELECT id, name FROM campgrounds WHERE id = $1', [campgroundId]);
+  const campground = campgroundResult.rows[0] as Campground | undefined;
   const campsite = campsites.find(cs => cs.id === siteId && cs.campgroundId === campgroundId);
 
   if (!campground || !campsite) {
