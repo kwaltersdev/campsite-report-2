@@ -5,4 +5,4 @@ CREATE TABLE campgrounds (
   name TEXT NOT NULL
 );
 
-INSERT INTO campgrounds (name) VALUES ('Whitewater State Park');
+INSERT INTO campgrounds (name) VALUES ('Whitewater Memorial State Park, IN');

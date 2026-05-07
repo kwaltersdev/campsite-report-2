@@ -21,7 +21,8 @@
         ]
     },
     "include": [
-        "src/**/*"
+        "src/**/*",
+        "db/migrate.ts"
     ],
     "exclude": [
         "node_modules",

@@ -1,6 +1,11 @@
 import { readdir, readFile } from 'fs/promises';
 import path from 'path';
-import { query } from './db.js';
+import { fileURLToPath } from 'url';
+import { query } from '../db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const migrationsDir = path.resolve(__dirname, '../../../sql-migrations');
 
 async function ensureMigrationsTable() {
   await query(`
@@ -18,7 +23,7 @@ async function getAppliedMigrations(): Promise<Set<string>> {
 }
 
 async function applyMigration(filename: string) {
-  const filePath = path.join('migrations', filename);
+  const filePath = path.join(migrationsDir, filename);
   const sql = await readFile(filePath, 'utf-8');
   await query(sql);
   await query('INSERT INTO schema_migrations (filename) VALUES ($1)', [filename]);
@@ -28,7 +33,7 @@ async function applyMigration(filename: string) {
 async function runMigrations() {
   await ensureMigrationsTable();
   const applied = await getAppliedMigrations();
-  const files = await readdir('migrations');
+  const files = await readdir(migrationsDir);
   const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
   for (const file of sqlFiles) {
     if (!applied.has(file)) {
