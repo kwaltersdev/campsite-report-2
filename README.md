@@ -32,9 +32,9 @@ The database manager should keep track of what migration files have already run 
 - Database:	PostgreSQL
 - SQL Migration: Custom
 - Frontend:	HTML/CSS/JS
-- Reverse Proxy:	Caddy
-- Auth: Custom, Node.js crypto password hashing and verification
-- Deployment:	Docker Compose
+- Reverse Proxy: Caddy
+- Auth: Custom, Argon2id password hashing and verification
+- Deployment: Docker Compose
 
 ## Development
 - Development environment uses Docker Compose to connect to a PostgreSQL Database

@@ -29,7 +29,7 @@ The `auth.ts` module provides secure authentication and session management for t
 
 ## Usage in Application Flow
 
-1. **First-Time Setup**: User visits the site, answers "Who are you?" security question with "Curious George", then creates a password via `hashPassword()` and `updatePassword()`
+1. **First-Time Setup**: Admin visits the site, enters the initial password from setup, then is prompted to create a new password via `hashPassword()` and `updatePassword()`
 
 2. **Login**: User submits credentials to `login()`, which validates against stored hash and creates a session
 

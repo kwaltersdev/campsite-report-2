@@ -46,4 +46,4 @@ This script implements the project’s custom migration strategy described in th
 
 ## Usage
 
-Run this script from the `src/db/migrations` context in the app start process or as part of setup.
+Run this script from the root directory in the app start process or as part of setup.

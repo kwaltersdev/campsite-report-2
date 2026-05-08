@@ -26,7 +26,7 @@ function hashUserAgent(userAgent: string | undefined | null): string | null {
  * @param plain - The plaintext password to hash
  * @returns A promise that resolves to the Argon2id password hash
  */
-export async function hashPassword(plain: string): Promise<string> {
+async function hashPassword(plain: string): Promise<string> {
   // Explicitly use argon2id with custom parameters for easier migration to other argon2 providers if needed, and to ensure consistent hashing across environments.
   return argon2.hash(plain, {
     type: argon2.argon2id,
@@ -44,7 +44,7 @@ export async function hashPassword(plain: string): Promise<string> {
  * @param plain - The plaintext password to verify
  * @returns A promise that resolves to true if the password matches, false otherwise
  */
-export async function verifyPassword(hash: string, plain: string): Promise<boolean> {
+async function verifyPassword(hash: string, plain: string): Promise<boolean> {
   try {
     return await argon2.verify(hash, plain);
   } catch {
@@ -58,7 +58,7 @@ export async function verifyPassword(hash: string, plain: string): Promise<boole
  * @param len - The length of the ID in hex characters (default: 64)
  * @returns A random hex string of the specified length
  */
-export function generateId(len = 64): string {
+function generateId(len = 64): string {
   return randomBytes(Math.ceil(len / 2)).toString('hex').slice(0, len);
 }
 
@@ -99,7 +99,7 @@ export function sessionCookieOptions(secureFlag: boolean) {
  * @param userAgent - Optional user agent string for session validation
  * @returns A promise that resolves to the new session ID
  */
-export async function createSession(userId: string, userAgent?: string): Promise<string> {
+async function createSession(userId: string, userAgent?: string): Promise<string> {
   const sessionId = generateId(64);
   const now = new Date();
   const activeExpires = new Date(now.getTime() + ACTIVE_EXPIRES_SECONDS * 1000);
