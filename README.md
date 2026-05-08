@@ -32,9 +32,9 @@ The database manager should keep track of what migration files have already run 
 - Database:	PostgreSQL
 - SQL Migration: Custom
 - Frontend:	HTML/CSS/JS
-- Reverse Proxy:	Caddy
-- Auth: Custom, Oslo for password hashing and verification
-- Deployment:	Docker Compose
+- Reverse Proxy: Caddy
+- Auth: Custom, Argon2id password hashing and verification
+- Deployment: Docker Compose
 
 ## Development
 - Development environment uses Docker Compose to connect to a PostgreSQL Database
@@ -61,3 +61,7 @@ docker compose down
 Copilot should:
 - Any SQL modifications should take place via a SQL script
 - Refrain from adding new dependencies unless listed in the tech stack
+
+## Philosophy
+
+Keep tech stack simple and mainstream. Avoid dependencies and keep the code base friendly to AI code generation (languages and libraries that AI is well trained on and performs well with).
