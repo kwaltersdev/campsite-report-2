@@ -5,8 +5,9 @@ import { HtmlEscapedString } from 'hono/utils/html';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { query } from './db/db.js';
 import { login, updatePassword, getSession, invalidateSession, sessionCookieOptions } from './auth/auth.js';
+import { AuthUserDAO } from './db/data-access/auth/AuthUser.js';
+import { CampgroundDAO } from './db/data-access/campgrounds/Campground.js';
 
 const app = new Hono();
 
@@ -74,8 +75,7 @@ app.use('*', async (c, next) => {
 
   // If user is logged in but must reset password, force them to reset-password page
   if (session && pathName !== '/reset-password' && pathName !== '/auth/reset-password') {
-    const userResult = await query('SELECT must_reset_password FROM app_user WHERE id = $1', [session.userId]);
-    if (userResult.rowCount && userResult.rowCount > 0 && userResult.rows[0].must_reset_password) {
+    if (await AuthUserDAO.findMustResetPasswordById(session.userId)) {
       return c.redirect('/reset-password');
     }
   }
@@ -182,11 +182,6 @@ const renderPage = (title: HtmlEscapedString | Promise<HtmlEscapedString>, body:
 </body>
 </html>`;
 
-interface Campground {
-  id: number;
-  name: string;
-}
-
 interface Campsite {
   id: string;
   campgroundId: number;
@@ -201,8 +196,7 @@ interface Campsite {
 const campsites: Campsite[] = [];
 
 app.get('/', async (c) => {
-  const result = await query('SELECT id, name FROM campgrounds ORDER BY name');
-  const campgrounds = result.rows as Campground[];
+  const campgrounds = await CampgroundDAO.findAll();
   return c.html(
     renderPage(
       html`Campsite Report`,
@@ -328,15 +322,14 @@ app.post('/add-campground', async (c) => {
   const body = await c.req.parseBody();
   const name = body.name as string;
   if (name) {
-    await query('INSERT INTO campgrounds (name) VALUES ($1)', [name]);
+    await CampgroundDAO.create(name);
   }
   return c.redirect('/');
 });
 
 app.get('/campground/:id', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
-  const result = await query('SELECT id, name FROM campgrounds WHERE id = $1', [id]);
-  const campground = result.rows[0] as Campground | undefined;
+  const campground = await CampgroundDAO.findById(id);
   if (!campground) {
     return c.html(
       renderPage(
@@ -364,8 +357,7 @@ app.get('/campground/:id', async (c) => {
 
 app.get('/add-campsite', async (c) => {
   const defaultCampgroundId = parseInt(c.req.query('campground') || '', 10) || undefined;
-  const result = await query('SELECT id, name FROM campgrounds ORDER BY name');
-  const campgrounds = result.rows as { id: number; name: string; }[];
+  const campgrounds = await CampgroundDAO.findAll();
   return c.html(
     renderPage(
       html`Add Campsite`,
@@ -421,7 +413,7 @@ app.get('/add-campsite', async (c) => {
 
 app.post('/add-campsite', async (c) => {
   const body = await c.req.parseBody();
-  const campgroundId = parseInt(body.campgroundId as string, 10);
+  const campgroundId = body.campgroundId as string;
   const name = body.name as string;
   const hasShade = parseInt(body.hasShade as string) as 1 | 2 | 3;
   const isMuddy = parseInt(body.isMuddy as string) as 1 | 2 | 3;
@@ -432,7 +424,7 @@ app.post('/add-campsite', async (c) => {
   if (campgroundId && name && tentCapacity && levelEasiness) {
     campsites.push({
       id: Math.random().toString(36).substr(2, 9),
-      campgroundId,
+      campgroundId: parseInt(campgroundId, 10),
       name,
       levelEasiness,
       notes,
@@ -467,8 +459,7 @@ app.get('/campground/:id/campsite/:siteId', async (c) => {
   const campgroundId = parseInt(c.req.param('id'), 10);
   const siteId = c.req.param('siteId');
 
-  const campgroundResult = await query('SELECT id, name FROM campgrounds WHERE id = $1', [campgroundId]);
-  const campground = campgroundResult.rows[0] as Campground | undefined;
+  const campground = await CampgroundDAO.findById(campgroundId);
   const campsite = campsites.find(cs => cs.id === siteId && cs.campgroundId === campgroundId);
 
   if (!campground || !campsite) {
