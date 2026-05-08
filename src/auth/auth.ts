@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from 'node:crypto';
 import argon2 from 'argon2';
-import { query } from '../db/db.js';
+import { UserSessionDAO } from '../db/data-access/auth/UserSession.js';
+import { AuthUserDAO } from '../db/data-access/auth/AuthUser.js';
 
 // Session lifetimes
 const ACTIVE_EXPIRES_SECONDS = 7 * 24 * 60 * 60; // 7 days
@@ -106,10 +107,7 @@ async function createSession(userId: string, userAgent?: string): Promise<string
   const idleExpires = new Date(now.getTime() + IDLE_EXPIRES_SECONDS * 1000);
   const uaHash = hashUserAgent(userAgent);
 
-  await query(
-    'INSERT INTO user_session (id, user_id, active_expires, idle_expires, ua_hash) VALUES ($1, $2, $3, $4, $5)',
-    [sessionId, userId, activeExpires, idleExpires, uaHash]
-  );
+  await UserSessionDAO.create(sessionId, userId, activeExpires, idleExpires, uaHash);
 
   return sessionId;
 }
@@ -137,32 +135,22 @@ export async function getSession(
     return null;
   }
 
-  const result = await query(
-    'SELECT user_id, active_expires, idle_expires, ua_hash FROM user_session WHERE id = $1',
-    [sessionId]
-  );
+  const userSession = await UserSessionDAO.findById(sessionId);
 
-  if (result.rowCount === 0) {
+  if (!userSession) {
     return null;
   }
 
-  const session = result.rows[0] as {
-    user_id: string;
-    active_expires: Date | string;
-    idle_expires: Date | string;
-    ua_hash: string | null;
-  };
-
   const now = new Date();
-  const idleExpires = new Date(session.idle_expires);
-  const activeExpires = new Date(session.active_expires);
+  const idleExpires = new Date(userSession.idleExpires);
+  const activeExpires = new Date(userSession.activeExpires);
 
   if (idleExpires <= now) {
     await invalidateSession(sessionId);
     return null;
   }
 
-  const expectedUaHash = session.ua_hash;
+  const expectedUaHash = userSession.uaHash;
   const currentUaHash = hashUserAgent(userAgent);
   if (expectedUaHash && expectedUaHash !== currentUaHash) {
     await invalidateSession(sessionId);
@@ -171,10 +159,10 @@ export async function getSession(
 
   if (activeExpires <= now) {
     const refreshedActiveExpires = new Date(now.getTime() + ACTIVE_EXPIRES_SECONDS * 1000);
-    await query('UPDATE user_session SET active_expires = $1 WHERE id = $2', [refreshedActiveExpires, sessionId]);
+    await UserSessionDAO.updateActiveExpires(sessionId, refreshedActiveExpires);
   }
 
-  return { userId: session.user_id };
+  return { userId: userSession.userId };
 }
 
 /**
@@ -184,7 +172,7 @@ export async function getSession(
  * @returns A promise that resolves when the session has been deleted
  */
 export async function invalidateSession(sessionId: string): Promise<void> {
-  await query('DELETE FROM user_session WHERE id = $1', [sessionId]);
+  await UserSessionDAO.delete(sessionId);
 }
 
 /**
@@ -210,68 +198,43 @@ export async function login(
   sessionId: string;
   mustResetPassword: boolean;
 } | null> {
-  const result = await query(
-    `SELECT
-       u.id AS user_id,
-       u.must_reset_password,
-       u.failed_attempts,
-       u.lockout_until,
-       p.password_hash
-     FROM app_user u
-     JOIN user_password p ON p.user_id = u.id
-     WHERE u.username = $1`,
-    [username]
-  );
+  const authUser = await AuthUserDAO.findByUsername(username);
 
-  if (result.rowCount === 0) {
-    await burnPasswordTime(password);
+  if (!authUser) {
+    burnPasswordTime(password);
     return null;
   }
 
-  const row = result.rows[0] as {
-    user_id: string;
-    must_reset_password: boolean;
-    password_hash: string;
-    failed_attempts: number;
-    lockout_until: Date | string | null;
-  };
-
   const now = new Date();
-  const lockoutUntil = row.lockout_until ? new Date(row.lockout_until) : null;
+  const lockoutUntil = authUser.lockoutUntil ? new Date(authUser.lockoutUntil) : null;
 
   if (lockoutUntil && lockoutUntil > now) {
     await burnPasswordTime(password);
     return null;
   }
 
-  const isValid = await verifyPassword(row.password_hash, password);
+  const isValid = await verifyPassword(authUser.passwordHash, password);
 
   if (!isValid) {
-    const failedAttempts = (row.failed_attempts ?? 0) + 1;
+    const failedAttempts = (authUser.failedAttempts ?? 0) + 1;
     let newLockoutUntil: Date | null = null;
 
     if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
       newLockoutUntil = new Date(now.getTime() + LOCKOUT_WINDOW_SECONDS * 1000);
     }
 
-    await query(
-      'UPDATE app_user SET failed_attempts = $1, lockout_until = $2 WHERE id = $3',
-      [failedAttempts, newLockoutUntil, row.user_id]
-    );
+    await AuthUserDAO.updateFailedAttemptsAndLockout(authUser.id, failedAttempts, newLockoutUntil);
 
     return null;
   }
 
-  await query(
-    'UPDATE app_user SET failed_attempts = 0, lockout_until = NULL WHERE id = $1',
-    [row.user_id]
-  );
+  await AuthUserDAO.resetFailedAttemptsAndLockout(authUser.id);
 
-  const sessionId = await createSession(row.user_id, userAgent);
+  const sessionId = await createSession(authUser.id, userAgent);
   return {
-    userId: row.user_id,
+    userId: authUser.id,
     sessionId,
-    mustResetPassword: row.must_reset_password,
+    mustResetPassword: authUser.mustResetPassword,
   };
 }
 
@@ -287,7 +250,7 @@ export async function login(
 export async function updatePassword(userId: string, newPassword: string): Promise<void> {
   const passwordHash = await hashPassword(newPassword);
 
-  await query('UPDATE user_password SET password_hash = $1 WHERE user_id = $2', [passwordHash, userId]);
-  await query('UPDATE app_user SET must_reset_password = FALSE WHERE id = $1', [userId]);
-  await query('DELETE FROM user_session WHERE user_id = $1', [userId]);
+  await AuthUserDAO.updatePasswordHash(userId, passwordHash);
+  await AuthUserDAO.updateMustResetPassword(userId, false);
+  await UserSessionDAO.deleteByUserId(userId);
 }

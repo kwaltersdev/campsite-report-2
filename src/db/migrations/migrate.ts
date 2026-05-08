@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { query } from '../db.js';
+import { query } from '../utilities.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
