@@ -12,10 +12,11 @@ export default async function (c: Context, next: Next) {
   c.set("userId", session?.userId ?? null);
 
   const pathName = new URL(c.req.url, 'http://localhost').pathname;
+  const isStylesheet = pathName === '/styles.css';
+
   const isPublicRoute =
     pathName === '/login' ||
-    pathName === '/me' ||
-    pathName === '/styles.css' ||
+    isStylesheet ||
     pathName.startsWith('/auth/');
 
   if (!session && !isPublicRoute) {
@@ -23,7 +24,7 @@ export default async function (c: Context, next: Next) {
   }
 
   // If user is logged in but must reset password, force them to reset-password page
-  if (session && !isPublicRoute && pathName !== '/reset-password' && pathName !== '/auth/reset-password') {
+  if (session && !isStylesheet && pathName !== '/reset-password' && pathName !== '/auth/reset-password') {
     if (await AuthUserDAO.findMustResetPasswordById(session.userId)) {
       return c.redirect('/reset-password');
     }

@@ -14,9 +14,9 @@ const Layout = (props: SiteData) => html`
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${props.title}</title>
-  <meta name="description" content="${props.description}" />
   <meta property="og:title" content="${props.title}" />
-  <meta property="og:image" content="${props.image}" />
+  ${props.description && `<meta name="description" content="${props.description}" />`}
+  ${props.image && `<meta property="og:image" content="${props.image}" />`}
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>

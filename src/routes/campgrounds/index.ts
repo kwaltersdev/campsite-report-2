@@ -6,8 +6,10 @@ import Layout from "../../Layout";
 import { campsites } from "..";
 
 const campgroundsApp = new Hono();
+// /campgrounds/:campgroundId/campsites
 campgroundsApp.route('/:campgroundId/campsites', campsitesApp);
 
+// /campgrounds/add
 campgroundsApp.get('/add', (c) =>
   c.html(
     Layout({
@@ -25,6 +27,7 @@ campgroundsApp.get('/add', (c) =>
   )
 );
 
+// /campgrounds/add
 campgroundsApp.post('/add', async (c) => {
   const body = await c.req.parseBody();
   const name = body.name as string;
@@ -34,6 +37,7 @@ campgroundsApp.post('/add', async (c) => {
   return c.redirect('/');
 });
 
+// /campgrounds/:campgroundId
 campgroundsApp.get('/:campgroundId', async (c) => {
   const id = parseInt(c.req.param('campgroundId'), 10);
   const campground = await CampgroundDAO.findById(id);

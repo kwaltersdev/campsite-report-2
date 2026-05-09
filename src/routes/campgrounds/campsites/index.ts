@@ -6,6 +6,7 @@ import { campsites } from "../..";
 
 const campsitesApp = new Hono();
 
+// /campgrounds/:campgroundId/campsites/add
 campsitesApp.get('/add', async (c) => {
   const campgroundId = c.req.param('campgroundId');
   return c.html(
@@ -58,6 +59,7 @@ campsitesApp.get('/add', async (c) => {
   );
 });
 
+// /campgrounds/:campgroundId/campsites/add
 campsitesApp.post('/add', async (c) => {
   const campgroundId = c.req.param('campgroundId');
   const body = await c.req.parseBody();
@@ -98,6 +100,7 @@ campsitesApp.post('/add', async (c) => {
   );
 });
 
+// /campgrounds/:campgroundId/campsites/:siteId
 campsitesApp.get('/:siteId', async (c) => {
   const campgroundId = parseInt(c.req.param('campgroundId') ?? '', 10);
   const siteId = c.req.param('siteId');

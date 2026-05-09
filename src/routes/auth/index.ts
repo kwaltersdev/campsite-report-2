@@ -6,6 +6,7 @@ const authApp = new Hono<{ Variables: { userId: string | null; }; }>();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// /auth/login
 authApp.post('/login', async (c) => {
   const body = await c.req.parseBody();
   const username = body.username as string;
@@ -27,6 +28,7 @@ authApp.post('/login', async (c) => {
   return c.json({ ok: true, mustResetPassword: result.mustResetPassword });
 });
 
+// /auth/logout
 authApp.post('/logout', async (c) => {
   const cookies = parseCookies(c.req.header('Cookie') ?? c.req.header('cookie') ?? '');
   const sessionId = cookies.session_id;
@@ -46,6 +48,7 @@ authApp.post('/logout', async (c) => {
   return c.json({ ok: true });
 });
 
+// /auth/reset-password
 authApp.post('/reset-password', async (c) => {
   const userId = c.get('userId') as string | null;
   if (!userId) {
